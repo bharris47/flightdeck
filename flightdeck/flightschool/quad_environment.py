@@ -39,7 +39,7 @@ STATE_INDICES = {field: i for i, field in enumerate(STATE_FIELDS)}
 
 
 class CrazyflieEnvironment(Env):
-    def __init__(self, crazyflie, motors=DEFAULT_MOTORS, max_motor_power=40000, state_update_frequency_ms=10,
+    def __init__(self, crazyflie, motors=DEFAULT_MOTORS, max_motor_power=30000, state_update_frequency_ms=10,
                  x_range=(-1.0, 1.0), y_range=(-1.0, 1.0), z_range=(0.5, 1.0)):
         self.action_space = Box(0, 1, shape=(len(motors),), dtype=np.float32)  # thrust for each motor
         self.observation_space = Box(-np.inf, np.inf, shape=(10,),
@@ -107,7 +107,7 @@ class CrazyflieEnvironment(Env):
         return math.sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2) + pow(z1 - z2, 2))
 
     def step(self, action):
-        print('m1: %f m2: %f m3: %f m4: %f' % action)
+        print('m1: %f m2: %f m3: %f m4: %f' % tuple(action))
 
         initial_state = self._state
 

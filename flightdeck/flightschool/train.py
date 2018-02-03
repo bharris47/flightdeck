@@ -53,8 +53,8 @@ class FlightTraining:
         random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
         model_name = 'ddpg_{}_weights.h5f'.format('crazyflie')
         agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
-                          memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
-                          random_process=random_process, gamma=.99, target_model_update=1e-3, batch_size=128)
+                          memory=memory, nb_steps_warmup_critic=128, nb_steps_warmup_actor=128,
+                          random_process=random_process, gamma=.99, target_model_update=1e-3)
         if os.path.exists(model_name):
             agent.load_weights(model_name)
         agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
