@@ -91,7 +91,7 @@ class FlightTraining:
         actor.add(Activation('relu'))
         actor.add(Dense(16))
         actor.add(Activation('relu'))
-        actor.add(Dense(nb_actions, activation='tanh'))
+        actor.add(Dense(nb_actions, activation='sigmoid'))
         actor.summary()
         return actor
 
