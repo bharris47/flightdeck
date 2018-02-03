@@ -11,6 +11,14 @@ from flightdeck.util import reset_estimator
 
 ROLLOVER_THRESHOLD = 150
 
+PARAM_MOTOR_POWER_SET_ENABLE = 'motorPowerSet.enable'
+DEFAULT_MOTORS = (
+    'motorPowerSet.m1',
+    'motorPowerSet.m2',
+    'motorPowerSet.m3',
+    'motorPowerSet.m4'
+)
+
 STATE_STABILIZER_YAW = 'stabilizer.yaw'
 STATE_STABILIZER_PITCH = 'stabilizer.pitch'
 STATE_STABILIZER_ROLL = 'stabilizer.roll'
@@ -29,31 +37,18 @@ STATE_FIELDS = [
 ]
 STATE_INDICES = {field: i for i, field in enumerate(STATE_FIELDS)}
 
-ACTION_YAW = 'yaw'
-ACTION_PITCH = 'pitch'
-ACTION_ROLL = 'roll'
-ACTION_THRUST = 'thrust'
-ACTIONS = [
-    ACTION_YAW,
-    ACTION_PITCH,
-    ACTION_ROLL,
-    ACTION_THRUST
-]
-ACTION_INDICES = {field: i for i, field in enumerate(ACTIONS)}
-
 
 class CrazyflieEnvironment(Env):
-    def __init__(self, crazyflie, max_pitch=10., max_roll=10., max_thrust=40000, state_update_frequency_ms=10,
+    def __init__(self, crazyflie, motors=DEFAULT_MOTORS, max_motor_power=40000, state_update_frequency_ms=10,
                  x_range=(-1.0, 1.0), y_range=(-1.0, 1.0), z_range=(0.5, 1.0)):
-        self.action_space = Box(0, 1, shape=(len(ACTIONS),), dtype=np.float32)  # yaw, pitch, roll, thrust
+        self.action_space = Box(0, 1, shape=(len(motors),), dtype=np.float32)  # thrust for each motor
         self.observation_space = Box(-np.inf, np.inf, shape=(10,),
                                      dtype=np.float32)  # yaw, pitch, roll, thrust, x, y, z, goalx, goaly, goalz
 
         self._cf = crazyflie
 
-        self._max_pitch = max_pitch
-        self._max_roll = max_roll
-        self._max_thrust = max_thrust
+        self._max_motor_power = max_motor_power
+        self._motors = motors
 
         self._state_update_frequency = state_update_frequency_ms / 1000
         self._state_logger = None
@@ -67,6 +62,11 @@ class CrazyflieEnvironment(Env):
         self._state_update_event = threading.Event()
 
     def reset(self):
+        self._set_motor_control_enabled(False)
+        for motor in self._motors:
+            self._set_motor_power(motor, 0)
+        self._set_motor_control_enabled(True)
+
         if self._state_logger is None:
             self._start_logger()
 
@@ -107,23 +107,12 @@ class CrazyflieEnvironment(Env):
         return math.sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2) + pow(z1 - z2, 2))
 
     def step(self, action):
+        print('m1: %f m2: %f m3: %f m4: %f' % action)
+
         initial_state = self._state
 
-        yaw = max(min(action[ACTION_INDICES[ACTION_YAW]] * 180., 180), -180)
-        pitch = max(min(action[ACTION_INDICES[ACTION_PITCH]] * self._max_pitch, self._max_pitch), -self._max_pitch)
-        roll = max(min(action[ACTION_INDICES[ACTION_ROLL]] * self._max_roll, self._max_roll), -self._max_roll)
-
-        thrust_factor = (action[ACTION_INDICES[ACTION_THRUST]] + 1.) / 2.0
-        thrust = max(min(int(thrust_factor * self._max_thrust), self._max_thrust), 0)
-
-        print('yaw: %f pitch: %f roll: %f thrust: %f' % (yaw, pitch, roll, thrust))
-
-        self._cf.commander.send_setpoint(
-            yaw=yaw,
-            pitch=pitch,
-            roll=roll,
-            thrust=thrust
-        )
+        for i, thrust in enumerate(action):
+            self._set_motor_power(self._motors[i], thrust)
 
         # only wait 1/10 of update frequency to prevent delay
         self._wait_for_state_change(initial_state)
@@ -152,7 +141,17 @@ class CrazyflieEnvironment(Env):
         return crashed
 
     def close(self):
-        pass
+        for motor in self._motors:
+            self._set_motor_power(motor, 0)
+        sleep(1)
+
+    def _set_motor_control_enabled(self, value):
+        self._cf.param.set_value(PARAM_MOTOR_POWER_SET_ENABLE, '1' if value is True else '0')
+
+    def _set_motor_power(self, motor, power):
+        power = min(max(power, 0), 1)
+        power = str(int(power * self._max_motor_power))
+        self._cf.param.set_value(motor, power)
 
     def _start_logger(self):
         print('starting logger...')
