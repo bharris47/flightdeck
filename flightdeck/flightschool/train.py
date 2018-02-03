@@ -1,7 +1,7 @@
 import atexit
 import logging
+import os
 from threading import Thread
-from time import sleep
 
 import numpy as np
 from keras import Sequential, Model
@@ -22,7 +22,6 @@ logging.basicConfig(level=logging.ERROR)
 
 def teardown_env(env, cf):
     env.close()
-    sleep(2)
     cf.close_link()
 
 
@@ -52,14 +51,19 @@ class FlightTraining:
 
         memory = SequentialMemory(limit=100000, window_length=1)
         random_process = OrnsteinUhlenbeckProcess(size=nb_actions, theta=.15, mu=0., sigma=.3)
+        model_name = 'ddpg_{}_weights.h5f'.format('crazyflie')
         agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_action_input=action_input,
                           memory=memory, nb_steps_warmup_critic=100, nb_steps_warmup_actor=100,
                           random_process=random_process, gamma=.99, target_model_update=1e-3)
+        if os.path.exists(model_name):
+            agent.load_weights(model_name)
         agent.compile(Adam(lr=.001, clipnorm=1.), metrics=['mae'])
 
-        agent.fit(env, nb_steps=50000, verbose=1)
-        agent.save_weights('ddpg_{}_weights.h5f'.format('crazyflie'), overwrite=True)
-        agent.test(env, nb_episodes=1)
+        try:
+            agent.fit(env, nb_steps=50000, verbose=2)
+            agent.test(env, nb_episodes=1)
+        finally:
+            agent.save_weights(model_name, overwrite=True)
 
     def critic_model(self, env, nb_actions):
         action_input = Input(shape=(nb_actions,), name='action_input')

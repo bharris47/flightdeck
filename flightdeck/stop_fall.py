@@ -74,9 +74,7 @@ if __name__ == '__main__':
     available = cflib.crtp.scan_interfaces()
 
     if available:
-        print('Drones found:')
-        for i in available:
-            print(i[0])
+        print('Drones found: %s' % available)
 
     detector = FallDetector(threshold=0.1)
 

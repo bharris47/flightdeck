@@ -43,7 +43,7 @@ ACTION_INDICES = {field: i for i, field in enumerate(ACTIONS)}
 
 
 class CrazyflieEnvironment(Env):
-    def __init__(self, crazyflie, max_pitch=10., max_roll=10., max_thrust=50000, state_update_frequency_ms=10,
+    def __init__(self, crazyflie, max_pitch=10., max_roll=10., max_thrust=40000, state_update_frequency_ms=10,
                  x_range=(-1.0, 1.0), y_range=(-1.0, 1.0), z_range=(0.5, 1.0)):
         self.action_space = Box(0, 1, shape=(len(ACTIONS),), dtype=np.float32)  # yaw, pitch, roll, thrust
         self.observation_space = Box(-np.inf, np.inf, shape=(10,),
@@ -86,8 +86,8 @@ class CrazyflieEnvironment(Env):
 
     def _get_new_goal_position(self, current_position):
         x, y, _ = current_position
-        x += self._get_random(*self._x_range)
-        y += self._get_random(*self._y_range)
+        # x += self._get_random(*self._x_range)
+        # y += self._get_random(*self._y_range)
         z = self._get_random(*self._z_range)  # always assume starting from ground
         return x, y, z
 
